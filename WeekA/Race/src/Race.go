@@ -57,7 +57,7 @@ func main(){
 		fmt.Printf("Value of A prior to increment: %d\n", a)
 
 		/* I'm putting syncronization construct to make sure all threads of 
-		parallel_exec() function completes there execution and there is no
+		parallel_exec() function completes their execution and there is no
 		pre-emption*/
 		wg.Add(1)
 		parallel_exec(&a, &wg)
