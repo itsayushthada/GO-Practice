@@ -1,12 +1,12 @@
 /*
  Race Condition: It's a situation in which the result of a process depends on the ordering of
- 		 the instrunction in which they gets executed. Dur to this the the result of the
-		 program or machine becaome stochastic when we are expecting a deterministic
-		 output. This happends when the steps of a task are depended on each other and
+ 		 the instructions in which they get executed. Due to this the result of the
+		 program or machine becomes stochastic when we are expecting a deterministic
+		 output. This happens when the steps of a task are depended on each other and
 		 they are executed in parallel.
 
 		 The following program demonstrates the race condition. It prints output output
-		 of function executed 10 different times.
+		 of the function executed 10 different times.
 */
 
 package main
