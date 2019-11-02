@@ -12,6 +12,23 @@ import(
 	"time"
 )
 
+var N_PROC int = 4
+/*
+	Number of thread to be spawn. It should be equlat to number of logical processer.
+	Logical Processor = Hyperthreading_Factor * Processors
+*/
+
+var VERBOSE bool = true
+/*
+	Flag variable to suppress outputs during Testing and Benchmarking.
+*/
+
+var POPULATION int = 40
+/*
+	Number of Eleemnts in Array for Result Verification.
+*/
+
+
 func Merge(arr []int, s_idx int, m_idx int, e_idx int){
 	/*
 	This function takes two arrays and merge them into one array sorted array.
@@ -67,7 +84,7 @@ func SeqMergeSort(arr []int, s_idx int, e_idx int){
 	}
 }
 
-func ParallelMergeSort(arr []int, s_idx int, e_idx int, process int, we){
+func ParallelMergeSort(arr []int, s_idx int, e_idx int, process int, par_wg *sync.WaitGroup){
 	/*
 	This function sorts the passed array in prallel using mergesort in background.
 	If we directly try to make merge sort parallel, the no of processes in the system
@@ -77,18 +94,27 @@ func ParallelMergeSort(arr []int, s_idx int, e_idx int, process int, we){
 	*/
 	if process != 1{
 		m_idx := int((s_idx + e_idx)/2)
-		var wg sync.Mutex
-		wg.Lock()
-			go ParallelMergeSort(arr, s_idx, m_idx, int(process/2))
-			go ParallelMergeSort(arr, m_idx+1, e_idx, int(process/2))
-		wg.Unlock()
+		var wg sync.WaitGroup
+		
+		wg.Add(2)
+			go ParallelMergeSort(arr, s_idx, m_idx, int(process/2), &wg)
+			go ParallelMergeSort(arr, m_idx+1, e_idx, int(process/2), &wg)
+		wg.Wait()
+		go par_wg.Done()
 		Merge(arr, s_idx, m_idx, e_idx)
 	} else{
 		SeqMergeSort(arr, s_idx, e_idx)
+		if VERBOSE{
+			fmt.Printf("Sorted Sub Array: %v\n", arr[s_idx:e_idx+1])
+		}
+		par_wg.Done()
 	}
 }
 
 func getRandomArray(size int) []int{
+	/*
+	Function to populate the array with random values.
+	*/
 	rand.Seed(time.Now().UnixNano())
 	arr := make([]int, uint(size))
 	for i:=0 ; i<len(arr) ; i++{
@@ -97,37 +123,103 @@ func getRandomArray(size int) []int{
 	return arr
 }
 
-func BenchmarkFunction(b *testing.B){
+func getUsersArray() []int{
+	/*
+	Function to populate an array with values passed through command line.
+	*/
+	var n,val int
+	fmt.Printf("\nEnter the number of Elements to be Sorted(>8): ")
+	fmt.Scanf("%d\n", &n)
+	
+	if n<8{
+		n = 8
+	}
+	arr := make([]int, n)
+	
+	fmt.Println("\nEnter the values: <Seprate two values by Pressing Enter>")
+	for i:=0 ; i<n ; i++{
+		fmt.Printf("%d > ", i+1)
+		fmt.Scanf("%d\n", &val)
+		arr[i] = val
+	}
+	return arr
+}
+
+func BenchmarkFunSequential(b *testing.B){
 	/*
 	This function is used to mesure the performance of function after each improvement.
 	*/
 
 	size := 1e6
-	process := 4
+	arr := getRandomArray(int(size))
+	SeqMergeSort(arr, 0, len(arr)-1)
+}
+
+func BenchmarkFunParallel(b *testing.B){
+	/*
+	This function is used to mesure the performance of function after each improvement.
+	*/
+
+	size := 1e6
 	
 	arr := getRandomArray(int(size))
-	ParallelMergeSort(arr, 0, len(arr)-1, process)
+	var wg sync.WaitGroup
+	
+	wg.Add(1)
+		ParallelMergeSort(arr, 0, len(arr)-1, N_PROC, &wg)
+	wg.Wait()
 }
 
 func main(){
-	/*
-	This is a driver functions. It will allow us to encapsulte different function.
-	Choice 1: Function Testing.
-	Choice 2: Peform sorting throug by automatically populating the array with random numbers.
-	Choice 3: Sorts the user defined array.
-	*/
-	choice := 2
+	var CHOICE int
 	
-	if choice == 1{
-		fmt.Println(testing.Benchmark(BenchmarkFunction))
-	}else if choice == 2{
-		arr := getRandomArray(100)
-		fmt.Printf("\nOriginal Array:\n%v\n\n", arr)
-		start := time.Now()
-		ParallelMergeSort(arr, 0, len(arr)-1, 4)
-		fmt.Println("Time Elpased", time.Since(start))
-		fmt.Printf("\nSorted Array: %v\n", arr)
-	}else{
-	
+	for {
+		fmt.Println("\n############################################################")
+		fmt.Println("\nChoice 1: Function Testing.")
+		fmt.Println("Choice 2: Peform sorting on Randomly populated Array.")
+		fmt.Println("Choice 3: Sorts the user defined array.)")
+		fmt.Printf("\nEnter the Choice in Integer: ")
+		fmt.Scanf("%d\n", &CHOICE)
+		
+		switch CHOICE{
+		
+		case 1:
+				VERBOSE = false
+				fmt.Printf("\nParallel Execution with %d Threads\n", N_PROC)
+				fmt.Println(testing.Benchmark(BenchmarkFunParallel))
+				fmt.Println("Serial Execution with 1 Main Thread")
+				fmt.Println(testing.Benchmark(BenchmarkFunSequential))
+				VERBOSE = true
+				
+		case 2: 
+				arr := getRandomArray(POPULATION)
+				fmt.Printf("\nOriginal Array:\n%v\n\n", arr)
+				var wg sync.WaitGroup
+
+				wg.Add(1)
+					start := time.Now()
+					ParallelMergeSort(arr, 0, len(arr)-1, N_PROC, &wg)
+				wg.Wait()
+
+				fmt.Println("\nTime Elpased", time.Since(start))
+				fmt.Printf("\nSorted Array: %v\n", arr)
+				
+		case 3:
+				arr := getUsersArray()
+				fmt.Printf("\n\nOriginal Array:\n%v\n\n", arr)
+				var wg sync.WaitGroup
+
+				wg.Add(1)
+					start := time.Now()
+					ParallelMergeSort(arr, 0, len(arr)-1, N_PROC, &wg)
+				wg.Wait()
+
+				fmt.Println("\nTime Elpased", time.Since(start))
+				fmt.Printf("\nSorted Array: %v\n", arr)
+				
+		default:
+				fmt.Println("End")
+				return	
+		}
 	}
 }

@@ -34,7 +34,7 @@ func serial_exec(name string, a int, parent *sync.WaitGroup, self *sync.WaitGrou
 	}
 }
 
-func parallel_exec(name string, a int, parent *sync.WaitGroup, self *sync.WaitGroup){
+func parallel_exec(name string, a int, self *sync.WaitGroup){
 	if(a==1){
 		a = a-1
 		name = fmt.Sprintf("Leaf: %s.L\n", name)
@@ -49,17 +49,16 @@ func parallel_exec(name string, a int, parent *sync.WaitGroup, self *sync.WaitGr
 		name3  := fmt.Sprintf("%s.M", name)
 		child.Add(2)
 			fmt.Printf("Split: %s\n", name1)
-			go parallel_exec(name1, a, self, &child)
+			go parallel_exec(name1, a, &child)
 			fmt.Printf("Split: %s\n", name2)
-			go parallel_exec(name2, a, self, &child)
-			self.Done()
+			go parallel_exec(name2, a, &child)
+			go self.Done()
 		child.Wait()
 		fmt.Printf("Merge: %s\n", name3)
 	}
 }
 
 func main(){
-	var parent sync.WaitGroup
 	var self sync.WaitGroup
 	a := 4
 	name := "O"
@@ -67,7 +66,7 @@ func main(){
 	
 	self.Add(1)
 		fmt.Printf("Origin:	%s\n", name)
-		parallel_exec(name, a, &parent, &self)
+		parallel_exec(name, a, &self)
 	self.Wait()
 	
 	fmt.Println("End: O\n\nTime Elapsed", time.Since(start))
