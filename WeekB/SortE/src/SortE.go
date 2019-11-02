@@ -6,10 +6,10 @@ package main
 
 import(
 	"fmt"
-	"time"
 	"math/rand"
 	"testing"
 	"sync"
+	"time"
 )
 
 func Merge(arr []int, s_idx int, m_idx int, e_idx int){
@@ -67,7 +67,7 @@ func SeqMergeSort(arr []int, s_idx int, e_idx int){
 	}
 }
 
-func ParallelMergeSort(arr []int, s_idx int, e_idx int, process int, wg *sync.WaitGroup){
+func ParallelMergeSort(arr []int, s_idx int, e_idx int, process int, we){
 	/*
 	This function sorts the passed array in prallel using mergesort in background.
 	If we directly try to make merge sort parallel, the no of processes in the system
@@ -75,19 +75,26 @@ func ParallelMergeSort(arr []int, s_idx int, e_idx int, process int, wg *sync.Wa
 	will be spawned during te execution of the code.
 	Note: Pass number of process in power of 2.
 	*/
-	
-	var inner_wg sync.WaitGroup
-	m_idx := int((s_idx + e_idx)/2)
 	if process != 1{
-		inner_wg.Add(2)
-		ParallelMergeSort(arr, s_idx, m_idx, int(process/2), &inner_wg)
-		ParallelMergeSort(arr, m_idx+1, e_idx, int(process/2), &inner_wg)
-		inner_wg.Wait()
+		m_idx := int((s_idx + e_idx)/2)
+		var wg sync.Mutex
+		wg.Lock()
+			go ParallelMergeSort(arr, s_idx, m_idx, int(process/2))
+			go ParallelMergeSort(arr, m_idx+1, e_idx, int(process/2))
+		wg.Unlock()
 		Merge(arr, s_idx, m_idx, e_idx)
 	} else{
 		SeqMergeSort(arr, s_idx, e_idx)
-		wg.Done()
 	}
+}
+
+func getRandomArray(size int) []int{
+	rand.Seed(time.Now().UnixNano())
+	arr := make([]int, uint(size))
+	for i:=0 ; i<len(arr) ; i++{
+		arr[i] = rand.Intn(size*100)
+	}
+	return arr
 }
 
 func BenchmarkFunction(b *testing.B){
@@ -95,35 +102,32 @@ func BenchmarkFunction(b *testing.B){
 	This function is used to mesure the performance of function after each improvement.
 	*/
 
-	size := 1e4
-	rand.Seed(time.Now().UnixNano())
-	arr := make([]int, uint(size))
-	for i:=0 ; i<len(arr) ; i++{
-		arr[i] = rand.Intn(100)
-	}
-	SeqMergeSort(arr, 0, len(arr)-1)
+	size := 1e6
+	process := 4
+	
+	arr := getRandomArray(int(size))
+	ParallelMergeSort(arr, 0, len(arr)-1, process)
 }
 
 func main(){
 	/*
 	This is a driver functions. It will allow us to encapsulte different function.
+	Choice 1: Function Testing.
+	Choice 2: Peform sorting throug by automatically populating the array with random numbers.
+	Choice 3: Sorts the user defined array.
 	*/
-
-	size := 16
-	rand.Seed(time.Now().UnixNano())
-	arr := make([]int, uint(size))
-	for i:=0 ; i<len(arr) ; i++{
-		arr[i] = rand.Intn(100)
+	choice := 2
+	
+	if choice == 1{
+		fmt.Println(testing.Benchmark(BenchmarkFunction))
+	}else if choice == 2{
+		arr := getRandomArray(100)
+		fmt.Printf("\nOriginal Array:\n%v\n\n", arr)
+		start := time.Now()
+		ParallelMergeSort(arr, 0, len(arr)-1, 4)
+		fmt.Println("Time Elpased", time.Since(start))
+		fmt.Printf("\nSorted Array: %v\n", arr)
+	}else{
+	
 	}
-	
-	var wg sync.WaitGroup
-	fmt.Printf("\nOriginal Array: %v\n", arr)
-	start := time.Now()
-	
-	wg.Add(1)
-	ParallelMergeSort(arr, 0, len(arr)-1, 4, &wg)
-	wg.Wait()
-	
-	fmt.Println("Time Elpased", time.Since(start))
-	fmt.Printf("Sorted Array: %v\n", arr)
 }
